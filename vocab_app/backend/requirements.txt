@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+python-dotenv
+google-genai
+python-multipart
+pdfplumber
+pypdf>=6.0.0
+sse-starlette>=1.8.2
+Pillow>=10.0.0

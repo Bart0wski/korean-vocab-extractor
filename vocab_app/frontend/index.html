@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Korean Vocab Extractor v2</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+
+<header>
+  <img src="https://flagicons.lipis.dev/flags/4x3/kr.svg" width="36" height="27" alt="Korean flag" style="border-radius:3px;" />
+  <h1>Korean Vocabulary Extractor</h1>
+  <span class="version-badge">v2</span>
+</header>
+
+<main>
+
+  <!-- ── Tabs ── -->
+  <div class="tabs">
+    <button class="tab-btn active" data-panel="panel-text">✏️ Paste Text</button>
+    <button class="tab-btn"        data-panel="panel-pdf">📄 Upload PDF</button>
+    <button class="tab-btn"        data-panel="panel-image">🖼 Upload Image</button>
+    <button class="tab-btn"        data-panel="panel-csv">⬆ Import CSV</button>
+  </div>
+
+  <!-- ── Text Panel ── -->
+  <div id="panel-text" class="panel active">
+    <div class="card">
+      <h2>Paste Korean vocabulary or text</h2>
+      <form id="text-form">
+        <textarea id="korean-text" placeholder="붙여넣기… e.g. 간단하다, 고민, 먹다"></textarea>
+        <div class="form-row">
+          <input id="text-deck-tag" class="deck-tag-input" type="text" placeholder="Deck tag (optional) — e.g. TOPIK 1, Kdrama" />
+          <button class="btn-submit" type="submit">Extract Vocabulary</button>
+        </div>
+        <p id="text-status" class="status"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── PDF Panel ── -->
+  <div id="panel-pdf" class="panel">
+    <div class="card">
+      <h2>Upload Korean vocabulary PDF(s)</h2>
+      <p class="panel-hint">Up to 10 files · max 10 pages each</p>
+      <form id="pdf-form">
+        <label class="file-label" for="pdf-input">
+          <input id="pdf-input" type="file" accept=".pdf" multiple />
+          <span>📄</span>
+          <span id="pdf-file-name">Choose PDF file(s)…</span>
+        </label>
+        <div class="form-row">
+          <input id="pdf-deck-tag" class="deck-tag-input" type="text" placeholder="Deck tag (optional) — e.g. TOPIK 1, Kdrama" />
+          <button class="btn-submit" type="submit">Upload &amp; Extract</button>
+        </div>
+        <p id="pdf-status" class="status"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Image Panel ── -->
+  <div id="panel-image" class="panel">
+    <div class="card">
+      <h2>Upload image(s) with Korean vocabulary</h2>
+      <p class="panel-hint">Up to 10 files · jpg, png, gif, webp</p>
+      <form id="image-form">
+        <label class="file-label" for="image-input">
+          <input id="image-input" type="file" accept="image/*" multiple />
+          <span>🖼</span>
+          <span id="image-file-name">Choose image file(s)…</span>
+        </label>
+        <div class="form-row">
+          <input id="image-deck-tag" class="deck-tag-input" type="text" placeholder="Deck tag (optional) — e.g. TOPIK 1, Kdrama" />
+          <button class="btn-submit" type="submit">Upload &amp; Extract</button>
+        </div>
+        <p id="image-status" class="status"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── CSV Import Panel ── -->
+  <div id="panel-csv" class="panel">
+    <div class="card">
+      <h2>Import CSV directly to database</h2>
+      <p class="panel-hint">Bypasses AI extraction. Required columns: <code>korean</code>, <code>french</code>. Optional: <code>phrase</code>, <code>part_of_speech</code>, <code>thematic_tag</code>.</p>
+      <form id="csv-form">
+        <label class="file-label" for="csv-input">
+          <input id="csv-input" type="file" accept=".csv" />
+          <span>📊</span>
+          <span id="csv-file-name">Choose a CSV file…</span>
+        </label>
+        <button class="btn-submit" type="submit" style="margin-top:1rem;">Import</button>
+        <p id="csv-status" class="status"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Progress ── -->
+  <div id="progress-section" class="card" style="display:none;">
+    <p id="progress-msg" class="progress-msg">Processing…</p>
+    <div class="progress-track">
+      <div class="progress-pulse"></div>
+    </div>
+  </div>
+
+  <!-- ── Review (human-in-the-loop) ── -->
+  <div id="review-section" class="card" style="display:none;">
+    <div class="review-header">
+      <div>
+        <h2>Review Extracted Vocabulary</h2>
+        <p class="review-hint">Edit, fix or remove rows before saving to the database.</p>
+      </div>
+      <span class="badge badge-info" id="review-count">0 items</span>
+    </div>
+    <div style="overflow-x:auto; margin-top:1rem;">
+      <table class="review-table">
+        <thead>
+          <tr>
+            <th>Korean</th>
+            <th>French</th>
+            <th>Example phrase</th>
+            <th>Part of speech</th>
+            <th>Thematic tag</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="review-tbody"></tbody>
+      </table>
+    </div>
+    <div class="review-footer">
+      <div class="review-tag-row">
+        <label class="review-tag-label">Override deck tag for all rows:</label>
+        <input id="review-batch-tag" class="deck-tag-input" type="text" placeholder="e.g. TOPIK 1, Kdrama…" style="width:200px;" />
+      </div>
+      <button class="btn-submit" id="commit-btn" onclick="commitReview()">Commit to Database</button>
+    </div>
+    <p id="review-status" class="status"></p>
+  </div>
+
+  <!-- ── History ── -->
+  <div id="history-section" class="card">
+    <div class="history-controls">
+      <h2>Saved Vocabulary <small id="history-count" style="font-weight:400;color:#6b7280;font-size:0.85rem;"></small></h2>
+      <div style="display:flex;gap:0.5rem;align-items:center;">
+        <select id="page-size-select" class="page-size-select">
+          <option value="10">10 / page</option>
+          <option value="50" selected>50 / page</option>
+          <option value="100">100 / page</option>
+          <option value="ALL">All</option>
+        </select>
+        <input id="history-search" class="search-input" type="search" placeholder="Search…" />
+      </div>
+    </div>
+
+    <!-- ── Filters ── -->
+    <div class="filter-row">
+      <select id="filter-pos" class="filter-select">
+        <option value="">All parts of speech</option>
+      </select>
+      <select id="filter-tag" class="filter-select">
+        <option value="">All themes</option>
+      </select>
+    </div>
+
+    <!-- ── Toolbar ── -->
+    <div class="toolbar" id="toolbar">
+      <div class="toolbar-left">
+        <button class="btn-tool btn-export" onclick="exportAll()">⬇ Export All CSV</button>
+        <button class="btn-tool btn-danger-outline" onclick="deleteAll()">🗑 Delete All</button>
+      </div>
+      <div class="toolbar-right" id="selection-actions" style="display:none;">
+        <span id="selection-count" class="selection-label"></span>
+        <button class="btn-tool btn-export" onclick="exportSelected()">⬇ Export Selected</button>
+        <button class="btn-tool btn-danger-outline" onclick="deleteSelected()">🗑 Delete Selected</button>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-check"><input type="checkbox" id="select-all" title="Select all" /></th>
+            <th>Korean</th>
+            <th>French</th>
+            <th>Example phrase</th>
+            <th>POS</th>
+            <th>Tag</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="history-tbody"></tbody>
+      </table>
+    </div>
+    <div id="pagination" class="pagination"></div>
+  </div>
+
+</main>
+
+<!-- ── Confirm modal ── -->
+<div id="modal-overlay" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <p id="modal-msg" class="modal-msg"></p>
+    <p id="modal-msg2" class="modal-msg modal-msg2"></p>
+    <div class="modal-actions">
+      <button class="btn-tool" onclick="modalCancel()">Cancel</button>
+      <button class="btn-tool btn-danger" onclick="modalConfirm()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

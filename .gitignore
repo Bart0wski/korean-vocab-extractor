@@ -1,0 +1,43 @@
+# ── Secrets ───────────────────────────────────────────────────
+.env
+*.env.*
+
+# ── Database ──────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Logs ──────────────────────────────────────────────────────
+logs/
+*.log
+
+# ── Python cache ──────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# ── Virtual environments ───────────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+
+# ── Node ──────────────────────────────────────────────────────
+node_modules/
+
+# ── Generated output files ────────────────────────────────────
+pdf_coreen_10page_extracted.txt
+pdf_extracted_to_anki_format.csv
+pdf_extracted_to_anki_format_directly_gemini.csv
+anki_korean.csv
+
+# ── Tool state (Claude / OMC) ─────────────────────────────────
+**/.omc/
+.claude/settings.local.json
+
+# ── OS files ──────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini

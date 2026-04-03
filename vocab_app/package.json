@@ -1,0 +1,7 @@
+{
+  "name": "korean-vocab-app",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "cd backend && python3.10 -c \"import pathlib; [p.unlink() for p in pathlib.Path('.').rglob('*.pyc')]\" && python3.10 -m uvicorn main:app --reload --port 8000"
+  }
+}
