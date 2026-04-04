@@ -11,7 +11,7 @@
 <header>
   <img src="https://flagicons.lipis.dev/flags/4x3/kr.svg" width="36" height="27" alt="Korean flag" style="border-radius:3px;" />
   <h1>Korean Vocabulary Extractor</h1>
-  <span class="version-badge">v2</span>
+  <span class="version-badge">v2.1</span>
 </header>
 
 <main>
@@ -22,6 +22,7 @@
     <button class="tab-btn"        data-panel="panel-pdf">📄 Upload PDF</button>
     <button class="tab-btn"        data-panel="panel-image">🖼 Upload Image</button>
     <button class="tab-btn"        data-panel="panel-csv">⬆ Import CSV</button>
+    <button class="tab-btn"        data-panel="panel-stats">📊 Stats</button>
   </div>
 
   <!-- ── Text Panel ── -->
@@ -43,7 +44,7 @@
   <div id="panel-pdf" class="panel">
     <div class="card">
       <h2>Upload Korean vocabulary PDF(s)</h2>
-      <p class="panel-hint">Up to 10 files · max 10 pages each</p>
+      <p class="panel-hint">Up to 10 files · max 10 pages total</p>
       <form id="pdf-form">
         <label class="file-label" for="pdf-input">
           <input id="pdf-input" type="file" accept=".pdf" multiple />
@@ -96,6 +97,32 @@
     </div>
   </div>
 
+  <!-- ── Stats Panel ── -->
+  <div id="panel-stats" class="panel">
+    <div class="card">
+      <h2>Statistics Dashboard</h2>
+      <p id="stats-total" class="panel-hint"></p>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <p class="stat-title">Words by Part of Speech</p>
+        <canvas id="pos-chart" height="220"></canvas>
+      </div>
+      <div class="stat-card">
+        <p class="stat-title">Words Added per Week</p>
+        <canvas id="weekly-chart" height="220"></canvas>
+      </div>
+      <div class="stat-card">
+        <p class="stat-title">Top Thematic Tags</p>
+        <canvas id="tag-chart" height="220"></canvas>
+      </div>
+      <div class="stat-card">
+        <p class="stat-title">TOPIK Coverage (estimate)</p>
+        <div class="topik-bars" id="topik-bars"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Progress ── -->
   <div id="progress-section" class="card" style="display:none;">
     <p id="progress-msg" class="progress-msg">Processing…</p>
@@ -138,6 +165,22 @@
     <p id="review-status" class="status"></p>
   </div>
 
+  <!-- ── Merge (duplicate resolution) ── -->
+  <div id="merge-section" class="card" style="display:none;">
+    <div class="review-header">
+      <div>
+        <h2>Duplicate Words — Choose Values</h2>
+        <p class="review-hint">These words already exist. Pick the value you want to keep for each field.</p>
+      </div>
+      <span class="badge badge-dup" id="merge-count">0 duplicates</span>
+    </div>
+    <div id="merge-list"></div>
+    <div style="margin-top:1.25rem; padding-top:1rem; border-top:1.5px solid #e5e7eb; display:flex; justify-content:flex-end; gap:0.75rem;">
+      <button class="btn-tool" onclick="dismissMerge()">Skip All</button>
+      <button class="btn-submit" onclick="submitMerges()">Apply Selected</button>
+    </div>
+  </div>
+
   <!-- ── History ── -->
   <div id="history-section" class="card">
     <div class="history-controls">
@@ -167,14 +210,21 @@
     <div class="toolbar" id="toolbar">
       <div class="toolbar-left">
         <button class="btn-tool btn-export" onclick="exportAll()">⬇ Export All CSV</button>
+        <button class="btn-tool btn-export btn-anki" onclick="exportAllAnki()">⬇ Export All Anki</button>
         <button class="btn-tool btn-danger-outline" onclick="deleteAll()">🗑 Delete All</button>
       </div>
       <div class="toolbar-right" id="selection-actions" style="display:none;">
         <span id="selection-count" class="selection-label"></span>
-        <button class="btn-tool btn-export" onclick="exportSelected()">⬇ Export Selected</button>
-        <button class="btn-tool btn-danger-outline" onclick="deleteSelected()">🗑 Delete Selected</button>
+        <button class="btn-tool btn-export" onclick="exportSelected()">⬇ Export CSV</button>
+        <button class="btn-tool btn-export btn-anki" onclick="exportSelectedAnki()">⬇ Export Anki</button>
+        <button class="btn-tool btn-secondary" onclick="showBulkEditForm('part_of_speech')">✏️ Change POS</button>
+        <button class="btn-tool btn-secondary" onclick="showBulkEditForm('thematic_tag')">🏷 Change Tag</button>
+        <button class="btn-tool btn-danger-outline" onclick="deleteSelected()">🗑 Delete</button>
       </div>
     </div>
+
+    <!-- ── Bulk inline edit form ── -->
+    <div id="bulk-edit-form" class="bulk-inline-form" style="display:none;"></div>
 
     <div style="overflow-x:auto;">
       <table>
@@ -209,6 +259,10 @@
   </div>
 </div>
 
+<!-- ── Toast ── -->
+<div id="toast" class="toast" style="display:none;"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

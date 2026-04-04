@@ -27,11 +27,10 @@ env/
 # ── Node ──────────────────────────────────────────────────────
 node_modules/
 
-# ── Generated output files ────────────────────────────────────
-pdf_coreen_10page_extracted.txt
-pdf_extracted_to_anki_format.csv
-pdf_extracted_to_anki_format_directly_gemini.csv
-anki_korean.csv
+# ── Generated output files (root-level prototypes & exports) ──
+/*.apkg
+/*.csv
+/*.txt
 
 # ── Tool state (Claude / OMC) ─────────────────────────────────
 **/.omc/

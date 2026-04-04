@@ -14,9 +14,14 @@ Built as a personal study tool for TOPIK preparation.
 - **SSE progress streaming** — live progress bar while PDFs and images are processed page by page
 - **PDF page splitting** — multi-page PDFs are split into single pages and sent to Gemini individually for accurate OCR on scanned documents
 - **History table** — searchable, filterable by part of speech and tag, paginated (10 / 50 / 100 / all)
+- **Inline editing** — click any cell in the history table (French, phrase, POS, tag) to edit it in place
 - **POS badges** — color-coded part-of-speech labels (Noun, Verb, Adjective…)
-- **Bulk operations** — select multiple entries to export or delete
+- **Bulk operations** — select multiple entries to export, delete, or re-tag in one click
+- **Bulk re-tag / change POS** — update `thematic_tag` or `part_of_speech` across all selected rows at once
+- **Duplicate merge** — when duplicates are found at commit time, a comparison table lets you choose which field values to keep
 - **CSV export** — export all or selected vocabulary to CSV (Anki-compatible)
+- **Anki .apkg export** — export directly to an Anki deck file with POS and tag as card tags
+- **Statistics dashboard** — words by POS (bar chart), words per week (line chart), tag breakdown (bar chart), TOPIK I/II coverage progress bars
 - **Structured logging** — terminal logs + `logs/app.log` + browser console with timestamps
 
 ---
@@ -29,6 +34,7 @@ Built as a personal study tool for TOPIK preparation.
 | AI | Google Gemini API (`google-genai` SDK) |
 | Database | SQLite via SQLAlchemy |
 | PDF processing | `pypdf` (page splitting) |
+| Anki export | `genanki` (.apkg generation) |
 | Streaming | Server-Sent Events (`sse-starlette`) |
 | Frontend | Vanilla HTML / CSS / JavaScript |
 
@@ -164,6 +170,12 @@ Before saving, each word is checked against the `korean` column (unique constrai
 | `DELETE` | `/api/vocabulary/{id}` | Delete one entry |
 | `DELETE` | `/api/vocabulary/bulk` | Delete selected entries |
 | `DELETE` | `/api/vocabulary` | Delete all entries |
+| `PATCH` | `/api/vocabulary/{id}` | Inline-edit one entry |
+| `PATCH` | `/api/vocabulary/bulk-edit` | Bulk change POS or tag |
+| `POST` | `/api/vocabulary/merge` | Apply duplicate merge choices |
+| `GET` | `/api/vocabulary/export-anki` | Download all as .apkg |
+| `POST` | `/api/vocabulary/export-selected-anki` | Download selected as .apkg |
+| `GET` | `/api/stats` | Statistics dashboard data |
 
 Full API and architecture details in [`vocab_app/WIKI.md`](vocab_app/WIKI.md).
 
@@ -178,6 +190,17 @@ Full API and architecture details in [`vocab_app/WIKI.md`](vocab_app/WIKI.md).
 ---
 
 ## Changelog
+
+### v2.1
+- Inline cell editing — click French, phrase, POS or tag to edit in place
+- Anki .apkg export (all or selected), powered by `genanki`
+- Bulk re-tag / change POS for selected rows
+- Duplicate merge table — pick field values when duplicates are detected at commit
+- Statistics dashboard — POS bar chart, weekly line chart, tag breakdown, TOPIK I/II progress bars (Chart.js)
+- Toast notifications for save/merge/bulk-edit feedback
+- `PATCH /api/vocabulary/{id}` and `PATCH /api/vocabulary/bulk-edit` routes
+- `POST /api/vocabulary/merge` route
+- `GET /api/stats` route
 
 ### v2
 - Image upload tab (OCR via Gemini File API)
