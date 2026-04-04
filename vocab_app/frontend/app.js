@@ -10,6 +10,17 @@ function log(module, ...args) {
   console.log(`${time} [${module}]`, ...args);
 }
 
+// ── Toast ─────────────────────────────────────────────────────
+let _toastTimer = null;
+function showToast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast toast-${type}`;
+  el.style.display = 'block';
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { el.style.display = 'none'; }, 3500);
+}
+
 // ── Log active Gemini model on load ───────────────────────────
 fetch(`${API}/api/info`)
   .then(r => r.json())
@@ -24,6 +35,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById(btn.dataset.panel).classList.add('active');
     log('Tab', `Switched to → ${btn.textContent.trim()}`);
+    if (btn.dataset.panel === 'panel-stats') loadStats();
   });
 });
 
@@ -62,7 +74,7 @@ async function streamProcess(url, formData, onProgress, onDone, onError) {
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
-      buffer = lines.pop(); // keep incomplete last line
+      buffer = lines.pop();
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
         try {
@@ -243,7 +255,6 @@ function renderReviewTable() {
     tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No items to review.</td></tr>';
     return;
   }
-  const posOptions = POS_LIST.map(p => `<option value="${p}">${p}</option>`).join('');
   tbody.innerHTML = reviewItems.map((item, idx) => `
     <tr>
       <td><input type="text" value="${esc(item.korean  || '')}"
@@ -291,18 +302,244 @@ async function commitReview() {
     if (!res.ok) throw new Error(data.detail || 'Commit failed');
 
     log('Commit', `✅ ${data.saved.length} saved, ${data.duplicates.length} duplicate(s).`);
+
     const dupNote = data.duplicates.length
-      ? ` ${data.duplicates.length} duplicate(s) skipped.` : '';
+      ? ` ${data.duplicates.length} duplicate(s) — see merge section below.` : '';
     setStatus('review-status',
       `✅ ${data.saved.length} word(s) saved.${dupNote}`, 'success');
     document.getElementById('review-section').style.display = 'none';
     reviewItems = [];
     loadHistory();
+
+    if (data.merge_candidates && data.merge_candidates.length > 0) {
+      renderMergeSection(data.merge_candidates);
+    }
   } catch (err) {
     console.error('[Commit]', err);
     setStatus('review-status', `Error: ${err.message}`, 'error');
   } finally {
     btn.disabled = false;
+  }
+}
+
+// ── Merge section ──────────────────────────────────────────────
+let _mergeCandidates = [];
+
+function renderMergeSection(candidates) {
+  _mergeCandidates = candidates;
+  const sec = document.getElementById('merge-section');
+  document.getElementById('merge-count').textContent = `${candidates.length} duplicate${candidates.length !== 1 ? 's' : ''}`;
+
+  const FIELDS = [
+    { key: 'french',         label: 'French' },
+    { key: 'phrase',         label: 'Example phrase' },
+    { key: 'part_of_speech', label: 'Part of speech' },
+    { key: 'thematic_tag',   label: 'Thematic tag' },
+  ];
+
+  document.getElementById('merge-list').innerHTML = candidates.map((c, ci) => `
+    <div class="merge-entry">
+      <h3>🔤 ${esc(c.korean)}</h3>
+      <table class="merge-table">
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Keep existing</th>
+            <th>Use proposed</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${FIELDS.map(f => {
+            const ex  = c.existing[f.key]  || '—';
+            const pro = c.proposed[f.key] || '—';
+            const same = ex === pro;
+            return `<tr>
+              <td><strong>${f.label}</strong></td>
+              <td>
+                <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                  <input type="radio" name="merge-${ci}-${f.key}" value="existing" ${same ? 'checked' : 'checked'} />
+                  <span class="merge-val-existing">${esc(ex)}</span>
+                </label>
+              </td>
+              <td>
+                <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;${same?'opacity:0.45;':''}">
+                  <input type="radio" name="merge-${ci}-${f.key}" value="proposed" ${same ? 'disabled' : ''} />
+                  <span class="merge-val-proposed">${esc(pro)}</span>
+                </label>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`).join('');
+
+  sec.style.display = 'block';
+  sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function submitMerges() {
+  const FIELDS = ['french', 'phrase', 'part_of_speech', 'thematic_tag'];
+  const items = _mergeCandidates.map((c, ci) => {
+    const item = { id: c.id };
+    FIELDS.forEach(f => {
+      const chosen = document.querySelector(`input[name="merge-${ci}-${f}"]:checked`);
+      if (chosen) {
+        item[f] = chosen.value === 'existing' ? c.existing[f] : c.proposed[f];
+      }
+    });
+    return item;
+  });
+
+  try {
+    const res  = await fetch(`${API}/api/vocabulary/merge`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ items }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Merge failed');
+    log('Merge', `✅ ${data.updated} entries updated.`);
+    showToast(`✅ ${data.updated} duplicate(s) merged.`, 'success');
+    document.getElementById('merge-section').style.display = 'none';
+    _mergeCandidates = [];
+    loadHistory();
+  } catch (err) {
+    console.error('[Merge]', err);
+    showToast(`Merge error: ${err.message}`, 'error');
+  }
+}
+
+function dismissMerge() {
+  document.getElementById('merge-section').style.display = 'none';
+  _mergeCandidates = [];
+}
+
+// ── Inline cell editing ────────────────────────────────────────
+let _editTd = null;
+let _editOriginal = null;
+
+function startEdit(td) {
+  if (_editTd) cancelEdit();
+  const col   = td.dataset.col;
+  const rowId = Number(td.closest('tr').dataset.id);
+  _editOriginal = td.innerHTML;
+  _editTd = td;
+  td.classList.add('editing');
+
+  let input;
+  if (col === 'part_of_speech') {
+    input = document.createElement('select');
+    input.className = 'inline-edit-select';
+    input.innerHTML = `<option value="">— none —</option>` +
+      POS_LIST.map(p => `<option value="${p}"${td.dataset.value===p?' selected':''}>${p}</option>`).join('');
+  } else {
+    input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'inline-edit-input';
+    input.value = td.dataset.value || '';
+  }
+
+  input.dataset.col   = col;
+  input.dataset.rowId = rowId;
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); commitEdit(input); }
+    if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+  });
+  input.addEventListener('blur', () => {
+    // small delay so click on another cell cancels first
+    setTimeout(() => { if (_editTd === td) commitEdit(input); }, 120);
+  });
+
+  td.innerHTML = '';
+  td.appendChild(input);
+  input.focus();
+  if (input.select) input.select();
+}
+
+async function commitEdit(input) {
+  if (!_editTd) return;
+  const col   = input.dataset.col;
+  const rowId = Number(input.dataset.rowId);
+  const value = input.value.trim();
+
+  _editTd = null;
+  _editOriginal = null;
+
+  try {
+    const res  = await fetch(`${API}/api/vocabulary/${rowId}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ [col]: value || null }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Update failed');
+    log('Edit', `✅ id=${rowId} ${col}="${value}"`);
+
+    // Update the local allHistory entry
+    const entry = allHistory.find(r => r.id === rowId);
+    if (entry) entry[col] = value || null;
+    renderHistory();
+  } catch (err) {
+    console.error('[Edit]', err);
+    showToast(`Save failed: ${err.message}`, 'error');
+    loadHistory();
+  }
+}
+
+function cancelEdit() {
+  if (!_editTd) return;
+  _editTd.innerHTML = _editOriginal;
+  _editTd = null;
+  _editOriginal = null;
+}
+
+// ── Bulk edit ──────────────────────────────────────────────────
+function showBulkEditForm(field) {
+  const container = document.getElementById('bulk-edit-form');
+  const label = field === 'part_of_speech' ? 'New Part of Speech' : 'New Thematic Tag';
+
+  let inputHtml;
+  if (field === 'part_of_speech') {
+    inputHtml = `<select id="bulk-edit-value">
+      <option value="">— clear —</option>
+      ${POS_LIST.map(p => `<option value="${p}">${p}</option>`).join('')}
+    </select>`;
+  } else {
+    inputHtml = `<input type="text" id="bulk-edit-value" placeholder="e.g. TOPIK 1, Kdrama…" />`;
+  }
+
+  container.innerHTML = `
+    <label>${label}:</label>
+    ${inputHtml}
+    <button class="btn-tool btn-secondary" onclick="applyBulkEdit('${field}')">Apply to ${selectedIds.size} selected</button>
+    <button class="btn-tool" onclick="document.getElementById('bulk-edit-form').style.display='none'">✕</button>
+  `;
+  container.style.display = 'flex';
+  container.querySelector('#bulk-edit-value').focus();
+}
+
+async function applyBulkEdit(field) {
+  if (!selectedIds.size) return;
+  const valueEl = document.getElementById('bulk-edit-value');
+  const value   = valueEl ? valueEl.value.trim() : '';
+
+  try {
+    const body = { ids: [...selectedIds], [field]: value || null };
+    const res  = await fetch(`${API}/api/vocabulary/bulk-edit`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Bulk edit failed');
+    log('BulkEdit', `✅ ${data.updated} entries updated — ${field}="${value}"`);
+    showToast(`✅ ${data.updated} entries updated.`, 'success');
+    document.getElementById('bulk-edit-form').style.display = 'none';
+    loadHistory();
+  } catch (err) {
+    console.error('[BulkEdit]', err);
+    showToast(`Bulk edit failed: ${err.message}`, 'error');
   }
 }
 
@@ -382,17 +619,22 @@ function renderHistory() {
           ${selectedIds.has(r.id) ? 'checked' : ''} />
       </td>
       <td>${esc(r.korean)}</td>
-      <td>${esc(r.french)}</td>
-      <td>${esc(r.phrase)}</td>
-      <td>${r.part_of_speech
-            ? `<span class="pos-badge pos-${esc(r.part_of_speech)}">${esc(r.part_of_speech)}</span>`
-            : '<span style="color:#9ca3af">—</span>'}</td>
-      <td>${r.thematic_tag
-            ? `<span class="tag-badge">${esc(r.thematic_tag)}</span>`
-            : '<span style="color:#9ca3af">—</span>'}</td>
+      <td class="editable" data-col="french" data-id="${r.id}" data-value="${esc(r.french || '')}">${esc(r.french)}</td>
+      <td class="editable" data-col="phrase" data-id="${r.id}" data-value="${esc(r.phrase || '')}">${esc(r.phrase)}</td>
+      <td class="editable" data-col="part_of_speech" data-id="${r.id}" data-value="${esc(r.part_of_speech || '')}">
+        ${r.part_of_speech
+          ? `<span class="pos-badge pos-${esc(r.part_of_speech)}">${esc(r.part_of_speech)}</span>`
+          : '<span style="color:#9ca3af">—</span>'}
+      </td>
+      <td class="editable" data-col="thematic_tag" data-id="${r.id}" data-value="${esc(r.thematic_tag || '')}">
+        ${r.thematic_tag
+          ? `<span class="tag-badge">${esc(r.thematic_tag)}</span>`
+          : '<span style="color:#9ca3af">—</span>'}
+      </td>
       <td><button class="btn-delete" title="Delete" onclick="deleteEntry(${r.id})">✕</button></td>
     </tr>`).join('');
 
+  // Checkbox listeners
   tbody.querySelectorAll('.row-check').forEach(cb => {
     cb.addEventListener('change', () => {
       const id = Number(cb.dataset.id);
@@ -400,6 +642,11 @@ function renderHistory() {
       cb.closest('tr').classList.toggle('row-selected', cb.checked);
       updateSelectionUI();
     });
+  });
+
+  // Inline edit listeners — click on editable cells
+  tbody.querySelectorAll('td.editable').forEach(td => {
+    td.addEventListener('click', () => startEdit(td));
   });
 
   renderPagination(filteredRows.length, totalPages);
@@ -488,8 +735,11 @@ async function deleteEntry(id) {
   loadHistory();
 }
 
-// ── Export all ─────────────────────────────────────────────────
+// ── Export all CSV ─────────────────────────────────────────────
 function exportAll() { window.location.href = `${API}/api/vocabulary/export`; }
+
+// ── Export all Anki ───────────────────────────────────────────
+function exportAllAnki() { window.location.href = `${API}/api/vocabulary/export-anki`; }
 
 // ── Delete all ─────────────────────────────────────────────────
 function deleteAll() {
@@ -501,7 +751,7 @@ function deleteAll() {
   });
 }
 
-// ── Export selected ────────────────────────────────────────────
+// ── Export selected CSV ────────────────────────────────────────
 async function exportSelected() {
   if (!selectedIds.size) return;
   const res = await fetch(`${API}/api/vocabulary/export-selected`, {
@@ -509,8 +759,20 @@ async function exportSelected() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids: [...selectedIds] }),
   });
-  if (!res.ok) return alert('Export failed.');
+  if (!res.ok) return showToast('Export failed.', 'error');
   triggerDownload(await res.blob(), 'vocabulary_selected.csv');
+}
+
+// ── Export selected Anki ───────────────────────────────────────
+async function exportSelectedAnki() {
+  if (!selectedIds.size) return;
+  const res = await fetch(`${API}/api/vocabulary/export-selected-anki`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: [...selectedIds] }),
+  });
+  if (!res.ok) return showToast('Anki export failed.', 'error');
+  triggerDownload(await res.blob(), 'vocabulary_selected.apkg');
 }
 
 // ── Delete selected ────────────────────────────────────────────
@@ -527,6 +789,101 @@ function deleteSelected() {
     selectedIds.clear();
     loadHistory();
   });
+}
+
+// ── Stats dashboard ────────────────────────────────────────────
+let _statsLoaded = false;
+let _posChart = null, _weeklyChart = null, _tagChart = null;
+
+async function loadStats() {
+  if (_statsLoaded) return;
+  try {
+    const res  = await fetch(`${API}/api/stats`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Stats failed');
+    renderStats(data);
+    _statsLoaded = true;
+  } catch (err) {
+    console.error('[Stats]', err);
+    document.getElementById('stats-total').textContent = 'Failed to load statistics.';
+  }
+}
+
+function renderStats(data) {
+  document.getElementById('stats-total').textContent =
+    `${data.total_words} words in database`;
+
+  const CHART_DEFAULTS = {
+    responsive: true,
+    plugins: { legend: { display: false } },
+  };
+
+  // POS bar chart
+  if (_posChart) _posChart.destroy();
+  _posChart = new Chart(document.getElementById('pos-chart'), {
+    type: 'bar',
+    data: {
+      labels: data.pos_breakdown.map(r => r.pos),
+      datasets: [{ data: data.pos_breakdown.map(r => r.count),
+        backgroundColor: '#4f8ef7', borderRadius: 6 }],
+    },
+    options: { ...CHART_DEFAULTS, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+  });
+
+  // Weekly line chart
+  if (_weeklyChart) _weeklyChart.destroy();
+  _weeklyChart = new Chart(document.getElementById('weekly-chart'), {
+    type: 'line',
+    data: {
+      labels: data.weekly_counts.map(r => r.week),
+      datasets: [{ data: data.weekly_counts.map(r => r.count),
+        borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.12)',
+        tension: 0.35, fill: true, pointRadius: 4 }],
+    },
+    options: { ...CHART_DEFAULTS, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+  });
+
+  // Tag bar chart
+  if (_tagChart) _tagChart.destroy();
+  if (data.tag_breakdown.length > 0) {
+    _tagChart = new Chart(document.getElementById('tag-chart'), {
+      type: 'bar',
+      data: {
+        labels: data.tag_breakdown.map(r => r.tag),
+        datasets: [{ data: data.tag_breakdown.map(r => r.count),
+          backgroundColor: '#a78bfa', borderRadius: 6 }],
+      },
+      options: { ...CHART_DEFAULTS, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+        indexAxis: data.tag_breakdown.length > 5 ? 'y' : 'x' },
+    });
+  } else {
+    document.getElementById('tag-chart').closest('.stat-card').innerHTML =
+      '<p class="stat-title">Top Thematic Tags</p><p style="color:#9ca3af;font-size:0.9rem;margin-top:1rem;">No tags yet.</p>';
+  }
+
+  // TOPIK progress bars
+  const cov = data.topik_coverage;
+  document.getElementById('topik-bars').innerHTML = `
+    <div class="topik-item">
+      <div class="topik-label">
+        <span>TOPIK I (~800 words)</span>
+        <span>${cov.topik_i_pct}%</span>
+      </div>
+      <div class="topik-track">
+        <div class="topik-bar topik-bar-i" style="width:${cov.topik_i_pct}%"></div>
+      </div>
+      <p class="topik-note">${cov.total} / 800 words</p>
+    </div>
+    <div class="topik-item">
+      <div class="topik-label">
+        <span>TOPIK II (~3500 words)</span>
+        <span>${cov.topik_ii_pct}%</span>
+      </div>
+      <div class="topik-track">
+        <div class="topik-bar topik-bar-ii" style="width:${cov.topik_ii_pct}%"></div>
+      </div>
+      <p class="topik-note">${cov.total} / 3500 words</p>
+    </div>`;
 }
 
 // ── Modal ──────────────────────────────────────────────────────
