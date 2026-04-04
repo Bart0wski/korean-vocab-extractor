@@ -352,7 +352,9 @@ code {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 0;
+  padding-bottom: 1.25rem;
+  border-bottom: 1.5px solid #e5e7eb;
   flex-wrap: wrap;
 }
 .anki-deck-row .deck-tag-input { max-width: 480px; flex: 1; }
