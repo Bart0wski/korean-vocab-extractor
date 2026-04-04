@@ -349,16 +349,21 @@ code {
 .btn-tool:disabled  { opacity: 0.45; cursor: not-allowed; }
 
 .deck-name-input {
-  padding: 0.4rem 0.7rem;
+  padding: 0.4rem 0.75rem;
   border: 1.5px solid #bbf7d0;
   border-radius: 6px;
   font-size: 0.85rem;
+  font-weight: 500;
   background: #f0fdf4;
   color: #15803d;
-  width: 220px;
+  width: 260px;
   font-family: inherit;
+  height: 2rem;
+  box-sizing: border-box;
 }
-.deck-name-input:focus { outline: none; border-color: #15803d; }
+.deck-name-label { font-size: 0.85rem; font-weight: 600; color: #15803d; white-space: nowrap; }
+.deck-name-input::placeholder { color: #86efac; font-weight: 400; }
+.deck-name-input:focus { outline: none; border-color: #15803d; background: #fff; }
 
 /* ── Bulk inline edit form ── */
 .bulk-inline-form {
