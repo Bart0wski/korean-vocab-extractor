@@ -181,6 +181,29 @@ Full API and architecture details in [`vocab_app/WIKI.md`](vocab_app/WIKI.md).
 
 ---
 
+## Anki Study Settings — Study Both Directions in the Same Session
+
+By default Anki hides the reverse card until the next day. Two settings fix this:
+
+### 1. Disable "Bury siblings" *(most important)*
+
+**Deck Options → "Bury related new cards until the next day" → OFF**
+
+Without this, when you study the Korean→French card, Anki hides the French→Korean card until tomorrow.
+
+### 2. Set sort order so both sides appear back to back
+
+Requires the **V3 Scheduler** (Anki 2.1.45+):
+
+1. **Tools → Preferences** → enable **"V3 Scheduler"** if not already on
+2. **Deck Options → New Cards → New card sort order** → **"Random note, then template"**
+
+This gives you: word A Korean→French · word A French→Korean · word B Korean→French · word B French→Korean… — both sides of the same word back to back, words in random order.
+
+> With 20 new cards/day you study **10 new words/day** (2 cards each), seeing both directions in the same session.
+
+---
+
 ## Limits
 
 - PDF uploads: max **10 total pages** across all files per request
