@@ -222,6 +222,7 @@ def commit_vocabulary(payload: CommitPayload, db: Session = Depends(get_db)):
     logger.info(f"💾 [API] POST /api/vocabulary/commit — {len(payload.items)} item(s) to save.")
     saved, duplicates, merge_candidates = [], [], []
     batch_tag = (payload.thematic_tag or "").strip() or None
+    seen_in_batch: set = set()  # guard against intra-batch duplicates
 
     for item in payload.items:
         korean = item.korean.strip()
@@ -231,6 +232,11 @@ def commit_vocabulary(payload: CommitPayload, db: Session = Depends(get_db)):
         tag    = batch_tag or (item.thematic_tag or "").strip() or None
 
         if not korean or not french:
+            continue
+
+        # Intra-batch duplicate — skip without merge candidate
+        if korean in seen_in_batch:
+            duplicates.append(korean)
             continue
 
         existing = db.query(Vocabulary).filter(Vocabulary.korean == korean).first()
@@ -254,6 +260,7 @@ def commit_vocabulary(payload: CommitPayload, db: Session = Depends(get_db)):
             })
             continue
 
+        seen_in_batch.add(korean)
         db.add(Vocabulary(
             korean=korean, french=french, phrase=phrase,
             part_of_speech=pos, thematic_tag=tag,
