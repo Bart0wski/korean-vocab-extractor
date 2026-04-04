@@ -191,6 +191,14 @@ Full API and architecture details in [`vocab_app/WIKI.md`](vocab_app/WIKI.md).
 
 ## Changelog
 
+### v2.2
+- Bidirectional Anki cards — every export now includes both a Korean→French and a French→Korean card per word
+- Anki card text centered and enlarged (2.5em front, 2em back) for comfortable mobile study
+- Configurable Anki deck name with localStorage persistence (pre-filled with "Korean Vocabulary by Gemini")
+- Anki deck name input moved to its own labeled row below the toolbar, matching the site's input style
+- Statistics dashboard auto-refreshes when the database is modified (dirty-flag pattern — no extra backend calls)
+- Intra-batch duplicate guard — words that appear twice in the same Gemini response are deduplicated before the DB write, preventing IntegrityError crashes
+
 ### v2.1
 - Inline cell editing — click French, phrase, POS or tag to edit in place
 - Anki .apkg export (all or selected), powered by `genanki`

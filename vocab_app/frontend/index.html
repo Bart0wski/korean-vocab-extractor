@@ -11,7 +11,7 @@
 <header>
   <img src="https://flagicons.lipis.dev/flags/4x3/kr.svg" width="36" height="27" alt="Korean flag" style="border-radius:3px;" />
   <h1>Korean Vocabulary Extractor</h1>
-  <span class="version-badge">v2.1</span>
+  <span class="version-badge">v2.2</span>
 </header>
 
 <main>
@@ -223,10 +223,16 @@
       </div>
     </div>
 
+    <!-- ── Anki deck name row ── -->
+    <div class="anki-deck-row">
+      <label class="anki-deck-label" for="anki-deck-name">🃏 Anki deck name</label>
+      <input id="anki-deck-name" class="deck-tag-input" type="text" placeholder="e.g. Korean Vocabulary by Gemini" />
+    </div>
+
     <!-- ── Bulk inline edit form ── -->
     <div id="bulk-edit-form" class="bulk-inline-form" style="display:none;"></div>
 
-    <div style="overflow-x:auto;">
+    <div style="overflow-x:auto; margin-top:1.25rem;">
       <table>
         <thead>
           <tr>

@@ -54,6 +54,7 @@ ANKI_DECK_ID  = 2059400110
 
 class IdsPayload(BaseModel):
     ids: List[int]
+    deck_name: Optional[str] = None
 
 
 class VocabItem(BaseModel):
@@ -457,9 +458,12 @@ def export_selected_csv(payload: IdsPayload, db: Session = Depends(get_db)):
 
 
 @app.get("/api/vocabulary/export-anki")
-def export_all_anki(db: Session = Depends(get_db)):
+def export_all_anki(
+    deck_name: str = Query(default="Korean Vocabulary by Gemini"),
+    db: Session = Depends(get_db),
+):
     rows = db.query(Vocabulary).order_by(Vocabulary.created_at.desc()).all()
-    return _build_anki_response(rows, "vocabulary_all.apkg")
+    return _build_anki_response(rows, "vocabulary_all.apkg", deck_name=deck_name)
 
 
 @app.post("/api/vocabulary/export-selected-anki")
@@ -467,7 +471,7 @@ def export_selected_anki(payload: IdsPayload, db: Session = Depends(get_db)):
     if not payload.ids:
         raise HTTPException(400, "No IDs provided.")
     rows = db.query(Vocabulary).filter(Vocabulary.id.in_(payload.ids)).all()
-    return _build_anki_response(rows, "vocabulary_selected.apkg")
+    return _build_anki_response(rows, "vocabulary_selected.apkg", deck_name=payload.deck_name)
 
 
 @app.patch("/api/vocabulary/{entry_id}")
@@ -556,7 +560,10 @@ def _build_csv_response(rows, filename: str) -> StreamingResponse:
     )
 
 
-def _build_anki_response(rows, filename: str) -> StreamingResponse:
+DEFAULT_DECK_NAME = "Korean Vocabulary by Gemini"
+
+def _build_anki_response(rows, filename: str, deck_name: str = None) -> StreamingResponse:
+    deck_name = (deck_name or "").strip() or DEFAULT_DECK_NAME
     model = genanki.Model(
         ANKI_MODEL_ID,
         "Korean-French Vocab",
@@ -568,17 +575,17 @@ def _build_anki_response(rows, filename: str) -> StreamingResponse:
         templates=[
             {
                 "name": "Korean → French",
-                "qfmt": "<h2>{{Korean}}</h2>",
-                "afmt": "{{FrontSide}}<hr><b>{{French}}</b><br><em>{{Phrase}}</em>",
+                "qfmt": "<div style='text-align:center;font-size:2.5em;font-weight:bold;margin-top:1em;'>{{Korean}}</div>",
+                "afmt": "{{FrontSide}}<hr><div style='text-align:center;font-size:2em;font-weight:bold;'>{{French}}</div><div style='text-align:center;font-size:1.2em;color:#666;margin-top:0.5em;'>{{Phrase}}</div>",
             },
             {
                 "name": "French → Korean",
-                "qfmt": "<h2>{{French}}</h2>",
-                "afmt": "{{FrontSide}}<hr><b>{{Korean}}</b><br><em>{{Phrase}}</em>",
+                "qfmt": "<div style='text-align:center;font-size:2.5em;font-weight:bold;margin-top:1em;'>{{French}}</div>",
+                "afmt": "{{FrontSide}}<hr><div style='text-align:center;font-size:2em;font-weight:bold;'>{{Korean}}</div><div style='text-align:center;font-size:1.2em;color:#666;margin-top:0.5em;'>{{Phrase}}</div>",
             },
         ],
     )
-    deck = genanki.Deck(ANKI_DECK_ID, "Korean Vocabulary")
+    deck = genanki.Deck(ANKI_DECK_ID, deck_name)
 
     for r in rows:
         tags = []
