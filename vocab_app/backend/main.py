@@ -565,11 +565,18 @@ def _build_anki_response(rows, filename: str) -> StreamingResponse:
             {"name": "French"},
             {"name": "Phrase"},
         ],
-        templates=[{
-            "name": "Korean → French",
-            "qfmt": "<h2>{{Korean}}</h2>",
-            "afmt": "{{FrontSide}}<hr>{{French}}<br><em>{{Phrase}}</em>",
-        }],
+        templates=[
+            {
+                "name": "Korean → French",
+                "qfmt": "<h2>{{Korean}}</h2>",
+                "afmt": "{{FrontSide}}<hr><b>{{French}}</b><br><em>{{Phrase}}</em>",
+            },
+            {
+                "name": "French → Korean",
+                "qfmt": "<h2>{{French}}</h2><br><em>{{Phrase}}</em>",
+                "afmt": "{{FrontSide}}<hr><b>{{Korean}}</b>",
+            },
+        ],
     )
     deck = genanki.Deck(ANKI_DECK_ID, "Korean Vocabulary")
 
