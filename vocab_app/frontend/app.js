@@ -227,6 +227,7 @@ document.getElementById('csv-form').addEventListener('submit', async e => {
       `✅ ${data.imported} imported, ${data.duplicates} duplicates skipped.${errNote}`,
       'success',
     );
+    invalidateStats();
     loadHistory();
   } catch (err) {
     console.error('[CSV]', err);
@@ -309,6 +310,7 @@ async function commitReview() {
       `✅ ${data.saved.length} word(s) saved.${dupNote}`, 'success');
     document.getElementById('review-section').style.display = 'none';
     reviewItems = [];
+    invalidateStats();
     loadHistory();
 
     if (data.merge_candidates && data.merge_candidates.length > 0) {
@@ -402,6 +404,7 @@ async function submitMerges() {
     showToast(`✅ ${data.updated} duplicate(s) merged.`, 'success');
     document.getElementById('merge-section').style.display = 'none';
     _mergeCandidates = [];
+    invalidateStats();
     loadHistory();
   } catch (err) {
     console.error('[Merge]', err);
@@ -475,6 +478,7 @@ async function commitEdit(input) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Update failed');
     log('Edit', `✅ id=${rowId} ${col}="${value}"`);
+    if (col === 'part_of_speech' || col === 'thematic_tag') invalidateStats();
 
     // Update the local allHistory entry
     const entry = allHistory.find(r => r.id === rowId);
@@ -536,6 +540,7 @@ async function applyBulkEdit(field) {
     log('BulkEdit', `✅ ${data.updated} entries updated — ${field}="${value}"`);
     showToast(`✅ ${data.updated} entries updated.`, 'success');
     document.getElementById('bulk-edit-form').style.display = 'none';
+    invalidateStats();
     loadHistory();
   } catch (err) {
     console.error('[BulkEdit]', err);
@@ -793,16 +798,20 @@ function deleteSelected() {
 
 // ── Stats dashboard ────────────────────────────────────────────
 let _statsLoaded = false;
+let _statsDirty  = false;
 let _posChart = null, _weeklyChart = null, _tagChart = null;
 
+function invalidateStats() { _statsDirty = true; }
+
 async function loadStats() {
-  if (_statsLoaded) return;
+  if (_statsLoaded && !_statsDirty) return;
   try {
     const res  = await fetch(`${API}/api/stats`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Stats failed');
     renderStats(data);
     _statsLoaded = true;
+    _statsDirty  = false;
   } catch (err) {
     console.error('[Stats]', err);
     document.getElementById('stats-total').textContent = 'Failed to load statistics.';
