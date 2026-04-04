@@ -573,8 +573,8 @@ def _build_anki_response(rows, filename: str) -> StreamingResponse:
             },
             {
                 "name": "French → Korean",
-                "qfmt": "<h2>{{French}}</h2><br><em>{{Phrase}}</em>",
-                "afmt": "{{FrontSide}}<hr><b>{{Korean}}</b>",
+                "qfmt": "<h2>{{French}}</h2>",
+                "afmt": "{{FrontSide}}<hr><b>{{Korean}}</b><br><em>{{Phrase}}</em>",
             },
         ],
     )
