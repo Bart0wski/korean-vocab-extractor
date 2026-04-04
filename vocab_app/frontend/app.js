@@ -298,7 +298,7 @@ async function commitReview() {
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ items: reviewItems, thematic_tag: batchTag || null }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({ detail: `Server error ${res.status}` }));
     if (!res.ok) throw new Error(data.detail || 'Commit failed');
 
     log('Commit', `✅ ${data.saved.length} saved, ${data.duplicates.length} duplicate(s).`);
