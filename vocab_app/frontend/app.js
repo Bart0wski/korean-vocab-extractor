@@ -743,8 +743,29 @@ async function deleteEntry(id) {
 // ── Export all CSV ─────────────────────────────────────────────
 function exportAll() { window.location.href = `${API}/api/vocabulary/export`; }
 
+// ── Anki deck name (persisted in localStorage) ────────────────
+const ANKI_DECK_DEFAULT = 'Korean Vocabulary by Gemini';
+const ANKI_DECK_KEY     = 'ankiDeckName';
+
+function getAnkiDeckName() {
+  return localStorage.getItem(ANKI_DECK_KEY) || ANKI_DECK_DEFAULT;
+}
+
+function initAnkiDeckInput() {
+  const input = document.getElementById('anki-deck-name');
+  input.value = getAnkiDeckName();
+  input.addEventListener('input', () => {
+    const val = input.value.trim();
+    if (val) localStorage.setItem(ANKI_DECK_KEY, val);
+    else     localStorage.removeItem(ANKI_DECK_KEY);
+  });
+}
+
 // ── Export all Anki ───────────────────────────────────────────
-function exportAllAnki() { window.location.href = `${API}/api/vocabulary/export-anki`; }
+function exportAllAnki() {
+  const name = encodeURIComponent(getAnkiDeckName());
+  window.location.href = `${API}/api/vocabulary/export-anki?deck_name=${name}`;
+}
 
 // ── Delete all ─────────────────────────────────────────────────
 function deleteAll() {
@@ -774,7 +795,7 @@ async function exportSelectedAnki() {
   const res = await fetch(`${API}/api/vocabulary/export-selected-anki`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids: [...selectedIds] }),
+    body: JSON.stringify({ ids: [...selectedIds], deck_name: getAnkiDeckName() }),
   });
   if (!res.ok) return showToast('Anki export failed.', 'error');
   triggerDownload(await res.blob(), 'vocabulary_selected.apkg');
@@ -934,4 +955,5 @@ function esc(str = '') {
 }
 
 // ── Init ───────────────────────────────────────────────────────
+initAnkiDeckInput();
 loadHistory();

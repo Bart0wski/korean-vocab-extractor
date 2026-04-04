@@ -348,6 +348,18 @@ code {
 .btn-danger:hover   { background: #b91c1c; }
 .btn-tool:disabled  { opacity: 0.45; cursor: not-allowed; }
 
+.deck-name-input {
+  padding: 0.4rem 0.7rem;
+  border: 1.5px solid #bbf7d0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: #f0fdf4;
+  color: #15803d;
+  width: 220px;
+  font-family: inherit;
+}
+.deck-name-input:focus { outline: none; border-color: #15803d; }
+
 /* ── Bulk inline edit form ── */
 .bulk-inline-form {
   display: flex;
